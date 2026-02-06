@@ -1,0 +1,83 @@
+name: AI Grants PR
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 * * * *"
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  generate-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install SnowSQL
+        run: |
+          brew install --cask snowflake-snowsql
+
+      - name: Write Snowflake key (optional)
+        if: ${{ secrets.SNOWSQL_PRIVATE_KEY != '' }}
+        run: |
+          mkdir -p ~/.snowsql
+          echo "${{ secrets.SNOWSQL_PRIVATE_KEY }}" > ~/.snowsql/private_key.p8
+          chmod 600 ~/.snowsql/private_key.p8
+
+      - name: Export approved requests
+        env:
+          SNOWSQL_ACCOUNT: ${{ secrets.SNOWSQL_ACCOUNT }}
+          SNOWSQL_USER: ${{ secrets.SNOWSQL_USER }}
+          SNOWSQL_ROLE: ${{ secrets.SNOWSQL_ROLE }}
+          SNOWSQL_PRIVATE_KEY_PATH: ${{ secrets.SNOWSQL_PRIVATE_KEY_PATH }}
+          SNOWSQL_PRIVATE_KEY_PASSPHRASE: ${{ secrets.SNOWSQL_PRIVATE_KEY_PASSPHRASE }}
+        run: |
+          set -euo pipefail
+          mkdir -p data
+
+          AUTH_ARGS=()
+          if [[ -n "${SNOWSQL_PRIVATE_KEY_PATH:-}" ]]; then
+            AUTH_ARGS+=("-o" "private_key_path=${SNOWSQL_PRIVATE_KEY_PATH}")
+          elif [[ -f ~/.snowsql/private_key.p8 ]]; then
+            AUTH_ARGS+=("-o" "private_key_path=$HOME/.snowsql/private_key.p8")
+          fi
+          if [[ -n "${SNOWSQL_PRIVATE_KEY_PASSPHRASE:-}" ]]; then
+            AUTH_ARGS+=("-o" "private_key_passphrase=${SNOWSQL_PRIVATE_KEY_PASSPHRASE}")
+          fi
+
+          snowsql -a "$SNOWSQL_ACCOUNT" -u "$SNOWSQL_USER" -r "$SNOWSQL_ROLE" \
+            "${AUTH_ARGS[@]}" -o exit_on_error=true -f sql/04_export_approved.sql
+
+          snowsql -a "$SNOWSQL_ACCOUNT" -u "$SNOWSQL_USER" -r "$SNOWSQL_ROLE" \
+            "${AUTH_ARGS[@]}" -o exit_on_error=true \
+            -q "GET @AI_GOV.AI_AUTOMATION.AI_GRANTS_STAGE/approved_requests.json file://$PWD/data/"
+
+      - name: Generate Terraform JSON
+        run: |
+          set -euo pipefail
+          if [[ ! -s data/approved_requests.json ]]; then
+            echo "No approved requests to process. Failing to highlight missing approvals."
+            exit 1
+          fi
+          python3 scripts/requests_to_tf.py data/approved_requests.json grants.auto.tf.json
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          title: "AI grants: apply approved requests"
+          commit-message: "Generate grants from approved AI requests"
+          branch: "ai-grants/approved"
+          delete-branch: true
+          body: |
+            This PR was generated automatically from approved AI grant requests.
+            It updates `grants.auto.tf.json` based on the latest export.
+
+            Before merging, review the Terraform plan.

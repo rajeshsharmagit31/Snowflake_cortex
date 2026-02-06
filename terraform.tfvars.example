@@ -1,0 +1,9 @@
+snowflake_account       = "KJNBWXI-ZW90463"
+snowflake_user          = "RAJESHSNOWFLAKE31"
+snowflake_role          = "ACCOUNTADMIN"
+snowflake_authenticator = "externalbrowser"
+
+# Optional defaults
+# snowflake_warehouse = "MY_WH"
+# snowflake_database  = "MY_DB"
+# snowflake_schema    = "PUBLIC"
