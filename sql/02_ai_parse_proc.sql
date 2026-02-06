@@ -17,11 +17,13 @@ BEGIN
           "schema": {
             "type": "object",
             "properties": {
+              "create_role": {"type": "string", "description": "Role to create (optional)"},
               "role": {"type": "string", "description": "Role to receive the grant"},
               "database": {"type": "string", "description": "Target database name"},
+              "schema_name": {"type": "string", "description": "Target schema name (e.g., PUBLIC)"},
               "privileges": {"type": "array", "description": "List of privileges like USAGE"}
             },
-            "required": ["role", "database"]
+            "required": ["database", "schema_name"]
           }
         }')
       ) AS EXTRACT

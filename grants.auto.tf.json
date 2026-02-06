@@ -1,0 +1,27 @@
+{
+  "resource": {
+    "snowflake_role": {
+      "role_0": {
+        "name": "SNOWFLAKE_CORTEX_ROLE"
+      }
+    },
+    "snowflake_schema_grant": {
+      "schema_grant_0_0": {
+        "database_name": "SAMPLE_DB",
+        "schema_name": "PUBLIC",
+        "privilege": "USAGE",
+        "roles": [
+          "SNOWFLAKE_CORTEX_ROLE"
+        ]
+      },
+      "schema_grant_0_1": {
+        "database_name": "SAMPLE_DB",
+        "schema_name": "PUBLIC",
+        "privilege": "CREATE",
+        "roles": [
+          "SNOWFLAKE_CORTEX_ROLE"
+        ]
+      }
+    }
+  }
+}
